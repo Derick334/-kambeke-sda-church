@@ -1,0 +1,690 @@
+import React, { useEffect, useState, useRef } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import {
+  Menu,
+  X,
+  Calendar,
+  Clock,
+  MapPin,
+  Video,
+  Heart,
+  BookOpen,
+  Users,
+  ChevronRight,
+  Mail,
+  Phone,
+  Globe,
+  Facebook,
+  Youtube,
+  Instagram,
+  CheckCircle,
+  Loader,
+  Smartphone,
+} from 'lucide-react';
+
+/*
+  KambekeSDAWebsite (cleaned & componentized)
+  - Split into smaller components
+  - Accessibility and keyboard support for modal
+  - Smooth scroll helper
+  - Framer Motion animations for entrance / hover
+  - Cleaned className template usage
+*/
+
+// --- Small presentational components ---
+const AdventistLogo = ({ className = 'h-10 w-10 md:h-12 md:w-12 text-white fill-current shrink-0' }) => (
+  <svg viewBox="0 0 100 100" className={className} aria-hidden>
+    <path d="M50 5 L60 30 L55 30 L65 55 L50 95 L35 55 L45 30 L40 30 Z" fill="currentColor" />
+    <path d="M50 5 L85 30 L75 55 L50 95" fill="none" stroke="currentColor" strokeWidth="2" opacity="0.8" />
+    <path d="M50 5 L15 30 L25 55 L50 95" fill="none" stroke="currentColor" strokeWidth="2" opacity="0.8" />
+    <circle cx="50" cy="50" r="45" stroke="currentColor" strokeWidth="2" fill="none" opacity="0.12" />
+  </svg>
+);
+
+const MpesaLogo = () => (
+  <div className="flex items-center justify-center font-bold italic text-2xl tracking-tighter">
+    <span className="text-black">M-</span>
+    <span className="text-green-600">PESA</span>
+  </div>
+);
+
+const SectionHeading = ({ title, subtitle }) => (
+  <div className="text-center mb-12">
+    <h2 className="text-3xl md:text-4xl font-serif font-bold text-gray-800 mb-4">{title}</h2>
+    <div className="h-1 w-20 bg-yellow-600 mx-auto mb-4" />
+    {subtitle && <p className="text-gray-600 max-w-2xl mx-auto">{subtitle}</p>}
+  </div>
+);
+
+const EventCard = ({ month, date, day, title, time, location }) => (
+  <motion.article
+    initial={{ opacity: 0, y: 6 }}
+    animate={{ opacity: 1, y: 0 }}
+    transition={{ duration: 0.35 }}
+    className="bg-white rounded-lg shadow-md overflow-hidden flex flex-col md:flex-row border-l-4 border-yellow-600 hover:shadow-lg transition-shadow duration-300"
+    aria-label={`Event: ${title}`}
+  >
+    <div className="bg-gray-100 p-6 flex flex-col items-center justify-center min-w-[100px] text-center">
+      <span className="text-sm font-bold text-gray-500 uppercase">{month}</span>
+      <span className="text-3xl font-bold text-gray-800">{date}</span>
+      <span className="text-xs text-gray-500">{day}</span>
+    </div>
+    <div className="p-6 flex-1">
+      <h3 className="text-xl font-bold text-gray-800 mb-2">{title}</h3>
+      <div className="flex flex-col sm:flex-row gap-4 text-sm text-gray-600">
+        <div className="flex items-center"><Clock size={16} className="mr-2 text-yellow-600" /> {time}</div>
+        <div className="flex items-center"><MapPin size={16} className="mr-2 text-yellow-600" /> {location}</div>
+      </div>
+    </div>
+  </motion.article>
+);
+
+const MinistryCard = ({ icon: Icon, title, desc }) => (
+  <motion.div
+    whileHover={{ y: -6, boxShadow: '0 12px 30px rgba(2,6,23,0.08)' }}
+    className="bg-white p-8 rounded-xl shadow-sm border border-gray-100 transition-colors group text-center"
+  >
+    <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-blue-50 text-blue-900 mb-6 group-hover:bg-blue-900 group-hover:text-white transition-colors">
+      <Icon size={32} />
+    </div>
+    <h3 className="text-xl font-bold text-gray-900 mb-3">{title}</h3>
+    <p className="text-gray-600 leading-relaxed">{desc}</p>
+  </motion.div>
+);
+
+// --- Modal (M-Pesa Giving) ---
+function MpesaModal({ open, onClose, initialData = { phone: '', amount: '', type: 'Tithe' } }) {
+  const [givingStep, setGivingStep] = useState('input');
+  const [givingData, setGivingData] = useState(initialData);
+  const modalRef = useRef(null);
+
+  useEffect(() => {
+    if (open) {
+      setTimeout(() => modalRef.current?.focus(), 50);
+      document.body.style.overflow = 'hidden';
+    }
+    return () => { document.body.style.overflow = ''; };
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) {
+      setGivingStep('input');
+      setGivingData(initialData);
+    }
+  }, [open]);
+
+  const handleGive = (e) => {
+    e.preventDefault();
+    setGivingStep('processing');
+    // Keep this mocked for demo; replace with real STK integration server-side.
+    setTimeout(() => setGivingStep('success'), 1800);
+  };
+
+  const close = () => {
+    onClose?.();
+    setTimeout(() => {
+      setGivingStep('input');
+      setGivingData(initialData);
+    }, 200);
+  };
+
+  return (
+    <AnimatePresence>
+      {open && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+          role="dialog"
+          aria-modal="true"
+        >
+          <motion.div
+            initial={{ y: 20, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: 20, opacity: 0 }}
+            transition={{ type: 'spring', stiffness: 300, damping: 24 }}
+            ref={modalRef}
+            tabIndex={-1}
+            className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden"
+          >
+            <div className="bg-green-600 p-4 flex justify-between items-center text-white">
+              <div className="flex items-center gap-2">
+                <Smartphone className="h-6 w-6" />
+                <span className="font-bold text-lg">M-Pesa Giving</span>
+              </div>
+              <button onClick={close} aria-label="Close" className="hover:bg-green-700 p-1 rounded transition">
+                <X size={24} />
+              </button>
+            </div>
+
+            <div className="p-6">
+              {givingStep === 'input' && (
+                <form onSubmit={handleGive} className="space-y-4">
+                  <div className="text-center mb-6">
+                    <MpesaLogo />
+                    <p className="text-sm text-gray-500 mt-2">Kambeke SDA Church Paybill: <strong>123456</strong></p>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Giving Type</label>
+                    <select
+                      className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-green-500 outline-none"
+                      value={givingData.type}
+                      onChange={(e) => setGivingData({ ...givingData, type: e.target.value })}
+                    >
+                      <option value="Tithe">Tithe (10%)</option>
+                      <option value="Offering">Combined Offering</option>
+                      <option value="Building">Building Fund</option>
+                      <option value="Thanksgiving">Thanksgiving</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">M-Pesa Phone Number</label>
+                    <input
+                      type="tel"
+                      placeholder="07XX XXX XXX"
+                      required
+                      className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-green-500 outline-none"
+                      value={givingData.phone}
+                      onChange={(e) => setGivingData({ ...givingData, phone: e.target.value })}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Amount (KES)</label>
+                    <input
+                      type="number"
+                      placeholder="e.g. 500"
+                      required
+                      min="1"
+                      className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-green-500 outline-none"
+                      value={givingData.amount}
+                      onChange={(e) => setGivingData({ ...givingData, amount: e.target.value })}
+                    />
+                  </div>
+
+                  <button
+                    type="submit"
+                    className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-4 rounded-lg mt-4 transition-colors shadow-lg"
+                  >
+                    Send Request to Phone
+                  </button>
+                </form>
+              )}
+
+              {givingStep === 'processing' && (
+                <div className="text-center py-10">
+                  <Loader className="animate-spin h-12 w-12 text-green-600 mx-auto mb-4" />
+                  <h3 className="text-xl font-bold text-gray-800 mb-2">Processing Request</h3>
+                  <p className="text-gray-600">Please wait, checking M-Pesa status...</p>
+                </div>
+              )}
+
+              {givingStep === 'success' && (
+                <div className="text-center py-8">
+                  <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <CheckCircle className="h-10 w-10 text-green-600" />
+                  </div>
+                  <h3 className="text-xl font-bold text-gray-800 mb-2">Check Your Phone</h3>
+                  <p className="text-gray-600 mb-6">
+                    An STK push has been sent to <strong>{givingData.phone}</strong>. <br />
+                    Please enter your M-Pesa PIN to complete the {givingData.type} of KES {givingData.amount}.
+                  </p>
+                  <button
+                    onClick={close}
+                    className="bg-gray-800 text-white px-6 py-2 rounded-lg hover:bg-gray-900 transition"
+                  >
+                    Done
+                  </button>
+                </div>
+              )}
+            </div>
+
+            <div className="bg-gray-50 px-6 py-3 border-t text-center">
+              <p className="text-xs text-gray-500">Secure Payment by Safaricom M-Pesa</p>
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+}
+
+// --- Navbar ---
+function Navbar({ onOpenGiving }) {
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
+
+  const navLinks = [
+    { name: 'Home', href: '#home' },
+    { name: 'About', href: '#about' },
+    { name: 'Ministries', href: '#ministries' },
+    { name: 'Sermons', href: '#sermons' },
+    { name: 'Events', href: '#events' },
+    { name: 'Contact', href: '#contact' },
+  ];
+
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 50);
+    window.addEventListener('scroll', onScroll);
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
+
+  const safeScroll = (e, href) => {
+    e.preventDefault();
+    setIsMenuOpen(false);
+    const el = document.querySelector(href);
+    if (el) {
+      const headerOffset = 100;
+      const elementPosition = el.getBoundingClientRect().top;
+      const offsetPosition = elementPosition + window.pageYOffset - headerOffset;
+      window.scrollTo({ top: offsetPosition, behavior: 'smooth' });
+    }
+  };
+
+  return (
+    <nav
+      className={`fixed w-full z-40 transition-all duration-300 top-0 md:top-6 ${scrolled ? 'md:top-0 bg-blue-900 shadow-xl py-2' : 'bg-blue-900/95 backdrop-blur-md py-4'}`}
+    >
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex justify-between items-center">
+          <div className="flex items-center space-x-3 cursor-pointer" onClick={(e) => safeScroll(e, '#home')}>
+            <AdventistLogo />
+            <div className="flex flex-col">
+              <span className="text-white font-serif text-lg md:text-2xl font-bold leading-none tracking-wide">KAMBEKE</span>
+              <span className="text-blue-200 text-[10px] md:text-sm tracking-widest uppercase">Seventh-day Adventist Church</span>
+            </div>
+          </div>
+
+          <div className="hidden md:flex items-center space-x-1 lg:space-x-8">
+            {navLinks.map((link) => (
+              <a
+                key={link.name}
+                href={link.href}
+                onClick={(e) => safeScroll(e, link.href)}
+                className="text-gray-200 hover:text-white hover:bg-blue-800 px-3 py-2 rounded text-sm font-medium transition-all"
+              >
+                {link.name}
+              </a>
+            ))}
+            <button
+              onClick={onOpenGiving}
+              className="bg-yellow-600 hover:bg-yellow-500 text-white px-5 py-2 rounded font-bold text-sm transition-colors shadow-lg ml-4 flex items-center gap-2 animate-pulse"
+            >
+              <Heart size={16} fill="currentColor" /> GIVE ONLINE
+            </button>
+          </div>
+
+          <div className="md:hidden">
+            <button onClick={() => setIsMenuOpen(!isMenuOpen)} className="text-white p-2" aria-expanded={isMenuOpen} aria-label="Toggle menu">
+              {isMenuOpen ? <X size={28} /> : <Menu size={28} />}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {isMenuOpen && (
+        <div className="md:hidden bg-blue-950 border-t border-blue-800 absolute w-full left-0 top-full shadow-2xl">
+          <div className="px-4 pt-4 pb-6 space-y-2">
+            {navLinks.map((link) => (
+              <a
+                key={link.name}
+                href={link.href}
+                onClick={(e) => safeScroll(e, link.href)}
+                className="block px-3 py-3 rounded-md text-base font-medium text-white hover:bg-blue-800 border-b border-blue-900"
+              >
+                {link.name}
+              </a>
+            ))}
+            <div className="pt-4">
+              <button
+                onClick={() => { setIsMenuOpen(false); onOpenGiving(); }}
+                className="w-full bg-yellow-600 active:bg-yellow-700 text-white px-5 py-4 rounded font-bold flex justify-center items-center gap-2"
+              >
+                <Heart size={18} fill="currentColor" /> GIVE ONLINE
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </nav>
+  );
+}
+
+// --- Page sections ---
+function Hero({ onScrollTo }) {
+  return (
+    <section id="home" className="relative h-screen flex items-center justify-center pt-20">
+      <div className="absolute inset-0 bg-blue-900/60 z-10" />
+      <div
+        className="absolute inset-0 bg-cover bg-center bg-no-repeat bg-fixed"
+        style={{ backgroundImage: "url('https://images.unsplash.com/photo-1438232992991-995b7058bbb3?ixlib=rb-1.2.1&auto=format&fit=crop&w=1950&q=80')" }}
+        aria-hidden
+      />
+
+      <div className="relative z-20 text-center px-4 max-w-4xl mx-auto text-white">
+        <span className="uppercase tracking-[0.2em] text-yellow-400 font-semibold mb-4 block">Welcome to Kambeke</span>
+        <h1 className="text-5xl md:text-7xl font-serif font-bold mb-6 leading-tight drop-shadow-xl">
+          Proclaiming the <br /> Everlasting Gospel
+        </h1>
+        <p className="text-xl md:text-2xl text-gray-200 mb-10 font-light max-w-2xl mx-auto">
+          A family preparing for the soon return of Jesus Christ.
+        </p>
+        <div className="flex flex-col sm:flex-row gap-4 justify-center">
+          <button onClick={(e) => onScrollTo(e, '#events')} className="bg-yellow-600 hover:bg-yellow-700 text-white px-8 py-4 rounded font-bold text-lg transition-transform hover:-translate-y-1 shadow-lg">
+            Upcoming Events
+          </button>
+          <button onClick={(e) => onScrollTo(e, '#sermons')} className="bg-transparent border-2 border-white hover:bg-white hover:text-blue-900 text-white px-8 py-4 rounded font-bold text-lg transition-all">
+            Watch Live
+          </button>
+        </div>
+      </div>
+
+      <div className="absolute bottom-0 right-0 left-0 bg-gradient-to-t from-black/90 to-transparent p-6 z-20">
+        <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between text-white border-t border-white/20 pt-6">
+          <div className="mb-4 md:mb-0 text-center md:text-left">
+            <h3 className="text-xl font-bold text-yellow-400">Sabbath Worship</h3>
+            <p className="text-gray-300 text-sm">Join us every Saturday</p>
+          </div>
+          <div className="flex gap-6 md:gap-12 text-center text-sm md:text-base">
+            <div>
+              <span className="block font-bold text-yellow-400">08:45 AM</span>
+              <span className="text-gray-300">Sabbath School</span>
+            </div>
+            <div>
+              <span className="block font-bold text-yellow-400">11:00 AM</span>
+              <span className="text-gray-300">Divine Service</span>
+            </div>
+            <div>
+              <span className="block font-bold text-yellow-400">02:30 PM</span>
+              <span className="text-gray-300">Bible Study</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function About() {
+  return (
+    <section id="about" className="py-24 bg-white scroll-mt-12">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
+          <div className="relative">
+            <div className="absolute -top-4 -left-4 w-24 h-24 bg-yellow-100 rounded-full z-0" />
+            <img
+              src="https://images.unsplash.com/photo-1544427920-c49ccfb85579?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80"
+              alt="Church Community"
+              className="relative z-10 rounded-lg shadow-xl w-full object-cover h-[400px]"
+            />
+            <div className="absolute -bottom-6 -right-6 bg-blue-900 text-white p-6 rounded-lg shadow-lg z-20 hidden md:block border-b-4 border-yellow-500">
+              <p className="font-serif text-3xl font-bold">28</p>
+              <p className="text-sm uppercase tracking-wider">Fundamental Beliefs</p>
+            </div>
+          </div>
+
+          <div>
+            <h4 className="text-yellow-600 font-bold tracking-widest uppercase mb-2">Who We Are</h4>
+            <h2 className="text-4xl font-serif font-bold text-gray-900 mb-6">Faithful to Scripture, Waiting for His Return</h2>
+            <p className="text-gray-600 text-lg mb-6 leading-relaxed">
+              Kambeke SDA Church is a warm, welcoming community within the East Kenya Union. We believe that true religion involves both vertical connection with God and horizontal service to humanity.
+            </p>
+            <p className="text-gray-600 mb-8 leading-relaxed">
+              Our mission is to make disciples of Jesus Christ who live as His loving witnesses and proclaim to all people the everlasting gospel of the Three Angels' Messages in preparation for His soon return.
+            </p>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="flex items-start">
+                <BookOpen className="text-blue-900 mt-1 mr-3 flex-shrink-0" />
+                <div>
+                  <h5 className="font-bold text-gray-900">Bible Based</h5>
+                  <p className="text-sm text-gray-500">Sola Scriptura is our foundation.</p>
+                </div>
+              </div>
+              <div className="flex items-start">
+                <Users className="text-blue-900 mt-1 mr-3 flex-shrink-0" />
+                <div>
+                  <h5 className="font-bold text-gray-900">Community Focused</h5>
+                  <p className="text-sm text-gray-500">Serving Kambeke community.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function Ministries() {
+  const ministries = [
+    { icon: Users, title: 'Sabbath School', desc: "Interactive bible study for all ages. Join a class this Saturday to deepen your understanding of God's word." },
+    { icon: Heart, title: 'Dorcas & AMO', desc: 'Extending the healing ministry of Jesus to the less fortunate through food, clothing, and care.' },
+    { icon: MapPin, title: 'Pathfinders', desc: 'A scout-like organization for children teaching life skills, nature appreciation, and biblical values.' },
+    { icon: Video, title: 'Media', desc: 'Spreading the gospel through technology, streaming services, and managing church audio-visuals.' },
+    { icon: BookOpen, title: 'Adventist Youth (AYS)', desc: 'Empowering young people to be leaders today. Engaging programs every Sabbath afternoon.' },
+    { icon: Globe, title: 'Evangelism', desc: 'Taking the gospel commission seriously by organizing crusades and bible study groups.' },
+  ];
+
+  return (
+    <section id="ministries" className="py-24 bg-gray-50 scroll-mt-12">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <SectionHeading title="Our Ministries" subtitle="There is a place for everyone to serve and grow at Kambeke SDA." />
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+          {ministries.map((m) => (
+            <MinistryCard key={m.title} icon={m.icon} title={m.title} desc={m.desc} />
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function Sermons() {
+  return (
+    <section id="sermons" className="py-24 bg-blue-900 text-white relative overflow-hidden scroll-mt-12">
+      <div className="absolute top-0 right-0 p-20 opacity-5 pointer-events-none">
+        <AdventistLogo />
+      </div>
+
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+        <div className="flex flex-col lg:flex-row gap-12 items-center">
+          <div className="lg:w-1/2">
+            <span className="bg-red-600 text-white px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider mb-4 inline-block animate-pulse">Live Now</span>
+            <h2 className="text-4xl font-serif font-bold mb-6">Worship with us from anywhere</h2>
+            <p className="text-blue-100 text-lg mb-8 leading-relaxed">
+              Missed a service? Want to re-watch a powerful message? Access our archive of sermons or join our livestream every Sabbath via YouTube or Facebook.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-4">
+              <a className="flex items-center justify-center bg-white text-blue-900 px-6 py-3 rounded font-bold hover:bg-gray-100 transition-colors" href="#" rel="noreferrer">
+                <Youtube className="mr-2" size={20} /> Watch on YouTube
+              </a>
+              <button className="flex items-center justify-center border border-blue-400 text-white px-6 py-3 rounded font-bold hover:bg-blue-800 transition-colors">Sermon Archive</button>
+            </div>
+          </div>
+
+          <div className="lg:w-1/2 w-full">
+            <div className="bg-black rounded-lg shadow-2xl overflow-hidden aspect-video relative group cursor-pointer border-4 border-white/10">
+              <img
+                src="https://images.unsplash.com/photo-1490129375591-2dc04a1c5d95?ixlib=rb-1.2.1&auto=format&fit=crop&w=1000&q=80"
+                alt="Latest Sermon"
+                className="w-full h-full object-cover opacity-80 group-hover:opacity-60 transition-opacity"
+              />
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="w-16 h-16 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center group-hover:bg-red-600 transition-colors shadow-lg">
+                  <div className="w-0 h-0 border-t-8 border-t-transparent border-l-12 border-l-white border-b-8 border-b-transparent ml-1" />
+                </div>
+              </div>
+              <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/80 to-transparent">
+                <p className="font-bold">Latest Sermon: The Blessed Hope</p>
+                <p className="text-sm text-gray-300">Pastor • Last Sabbath</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function Events() {
+  return (
+    <section id="events" className="py-24 bg-white scroll-mt-12">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex justify-between items-end mb-12">
+          <div>
+            <h4 className="text-yellow-600 font-bold tracking-widest uppercase mb-2">Calendar</h4>
+            <h2 className="text-3xl md:text-4xl font-serif font-bold text-gray-800">Upcoming Events</h2>
+          </div>
+          <button className="hidden md:flex items-center text-blue-900 font-bold hover:underline">View Full Calendar <ChevronRight size={20} /></button>
+        </div>
+
+        <div className="grid gap-6">
+          <EventCard month="OCT" date="14" day="Sabbath" title="Camp Meeting 2024" time="08:00 AM - 05:00 PM" location="Kambeke Church Grounds" />
+          <EventCard month="OCT" date="21" day="Sabbath" title="Health Emphasis Day" time="11:00 AM" location="Main Sanctuary" />
+          <EventCard month="NOV" date="04" day="Sunday" title="Pathfinder Fair" time="09:00 AM" location="Union Grounds" />
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function Contact() {
+  return (
+    <section id="contact" className="py-24 bg-gray-100 scroll-mt-12">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <SectionHeading title="Visit Us" subtitle="We would love to fellowship with you." />
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 text-center">
+          <div className="bg-white p-8 rounded-xl shadow-sm">
+            <MapPin className="mx-auto h-10 w-10 text-yellow-600 mb-4" />
+            <h3 className="font-bold text-xl mb-2">Location</h3>
+            <p className="text-gray-600">Kambeke, Kenya<br />Main Road</p>
+          </div>
+          <div className="bg-white p-8 rounded-xl shadow-sm">
+            <Phone className="mx-auto h-10 w-10 text-yellow-600 mb-4" />
+            <h3 className="font-bold text-xl mb-2">Phone</h3>
+            <p className="text-gray-600">+254 700 000 000<br />+254 722 000 000</p>
+          </div>
+          <div className="bg-white p-8 rounded-xl shadow-sm">
+            <Mail className="mx-auto h-10 w-10 text-yellow-600 mb-4" />
+            <h3 className="font-bold text-xl mb-2">Email</h3>
+            <p className="text-gray-600">clerk@kambekesda.org<br />pastor@kambekesda.org</p>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function Footer({ onOpenGiving }) {
+  return (
+    <footer className="bg-gray-900 text-white pt-16 pb-8 border-t-4 border-yellow-600">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12 mb-12">
+          <div>
+            <div className="flex items-center space-x-3 mb-6">
+              <AdventistLogo />
+              <div className="flex flex-col">
+                <span className="font-serif font-bold text-lg leading-none">KAMBEKE</span>
+                <span className="text-gray-400 text-xs tracking-widest uppercase">SDA Church</span>
+              </div>
+            </div>
+            <p className="text-gray-400 text-sm leading-relaxed mb-6">A community preparing for the second coming of Jesus Christ. Join us as we worship, serve, and grow together.</p>
+            <div className="flex space-x-4">
+              <a href="#" className="text-gray-400 hover:text-white transition-colors"><Facebook size={20} /></a>
+              <a href="#" className="text-gray-400 hover:text-white transition-colors"><Youtube size={20} /></a>
+              <a href="#" className="text-gray-400 hover:text-white transition-colors"><Instagram size={20} /></a>
+            </div>
+          </div>
+
+          <div>
+            <h3 className="font-bold text-lg mb-6 text-white border-b border-gray-700 pb-2 inline-block">Quick Links</h3>
+            <ul className="space-y-3 text-sm text-gray-400">
+              <li><a href="#about" className="hover:text-yellow-500 transition-colors">About Us</a></li>
+              <li><a href="https://www.adventist.org/beliefs/" target="_blank" rel="noreferrer" className="hover:text-yellow-500 transition-colors">Our Beliefs (28)</a></li>
+              <li><a href="https://ssnet.org/" target="_blank" rel="noreferrer" className="hover:text-yellow-500 transition-colors">Sabbath School Lesson</a></li>
+              <li><button onClick={onOpenGiving} className="hover:text-yellow-500 transition-colors">Give Online</button></li>
+            </ul>
+          </div>
+
+          <div>
+            <h3 className="font-bold text-lg mb-6 text-white border-b border-gray-700 pb-2 inline-block">Our Family</h3>
+            <ul className="space-y-3 text-sm text-gray-400">
+              <li><a href="https://www.adventist.org/" target="_blank" rel="noreferrer" className="flex items-center hover:text-white"><Globe size={14} className="mr-2" /> General Conference</a></li>
+              <li><a href="https://www.ecd.adventist.org/" target="_blank" rel="noreferrer" className="flex items-center hover:text-white"><Globe size={14} className="mr-2" /> ECD Division</a></li>
+              <li><a href="https://eku.adventist.org/" target="_blank" rel="noreferrer" className="flex items-center hover:text-white"><Globe size={14} className="mr-2" /> East Kenya Union</a></li>
+              <li><a href="#" className="flex items-center hover:text-white"><Globe size={14} className="mr-2" /> Central Kenya Conference</a></li>
+            </ul>
+          </div>
+
+          <div>
+            <h3 className="font-bold text-lg mb-6 text-white border-b border-gray-700 pb-2 inline-block">Newsletter</h3>
+            <p className="text-gray-400 text-sm mb-4">Subscribe to receive church bulletins and updates.</p>
+            <div className="flex">
+              <input type="email" placeholder="Your email" className="bg-gray-800 text-white px-4 py-2 rounded-l w-full focus:outline-none focus:ring-1 focus:ring-yellow-600" />
+              <button className="bg-yellow-600 hover:bg-yellow-700 px-4 py-2 rounded-r font-bold">GO</button>
+            </div>
+          </div>
+        </div>
+
+        <div className="border-t border-gray-800 pt-8 flex flex-col md:flex-row justify-between items-center text-xs text-gray-500">
+          <p>© {new Date().getFullYear()} Kambeke Seventh-day Adventist Church. All rights reserved.</p>
+          <div className="mt-4 md:mt-0">
+            <a href="#" className="hover:text-white mr-4">Privacy Policy</a>
+          </div>
+        </div>
+      </div>
+    </footer>
+  );
+}
+
+// --- Main page component ---
+export default function KambekeSDAWebsite() {
+  const [isGivingOpen, setIsGivingOpen] = useState(false);
+
+  const scrollToSection = (e, href) => {
+    e.preventDefault();
+    const element = document.querySelector(href);
+    if (element) {
+      const headerOffset = 100;
+      const elementPosition = element.getBoundingClientRect().top;
+      const offsetPosition = elementPosition + window.pageYOffset - headerOffset;
+      window.scrollTo({ top: offsetPosition, behavior: 'smooth' });
+    }
+  };
+
+  return (
+    <div className="font-sans text-gray-800 bg-gray-50 relative">
+      {/* Global identity bar */}
+      <div className="bg-gray-100 text-gray-600 text-xs py-1 px-4 border-b border-gray-200 hidden md:block z-50 relative">
+        <div className="max-w-7xl mx-auto flex justify-end gap-4">
+          <a href="https://adventist.org" target="_blank" rel="noreferrer" className="hover:text-blue-900">Seventh-day Adventist Church</a>
+          <span className="text-gray-300">|</span>
+          <a href="https://eku.adventist.org" target="_blank" rel="noreferrer" className="hover:text-blue-900">East Kenya Union Conference</a>
+          <span className="text-gray-300">|</span>
+          <a href="#" className="hover:text-blue-900">Central Kenya Conference</a>
+        </div>
+      </div>
+
+      <Navbar onOpenGiving={() => setIsGivingOpen(true)} />
+
+      <main>
+        <Hero onScrollTo={scrollToSection} />
+        <About />
+        <Ministries />
+        <Sermons />
+        <Events />
+        <Contact />
+      </main>
+
+      <Footer onOpenGiving={() => setIsGivingOpen(true)} />
+
+      <MpesaModal open={isGivingOpen} onClose={() => setIsGivingOpen(false)} />
+    </div>
+  );
+}
